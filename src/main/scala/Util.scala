@@ -36,8 +36,6 @@ object Util
   Runner.staticProblem(name, p)
 }
 
-// def makeCombinations()
-
 /* Convert the NonEmtpyVector into a AtLeast2List structure which
 * guaraantees that there are 2 or more elements; fail otherwise
 */

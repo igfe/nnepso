@@ -5,37 +5,31 @@ import cilib.io._
 import zio.stream._
 
 object main extends zio.App {
-  /*
-   * combinations is the main ZStream dependency
-   * combinations in turn requires swarm, Runner.staticAlgorithm and problemStream
-   */
-
-
    def run(args: List[String]) = {
     val threads = 1
-    val outputFile = new java.io.File("results/out.parquet")
     println("Preparing to run")
     println(args)
     // problem parameters
     val swarmSize = 20
+    val iterations = 100
     val problemDimensions = 5
     val bounds = Interval(-100.0, 100.0) ^ problemDimensions
 
     // combinations objects
-    val swarm = makeSwarm(bounds, swarmSize)
     val problem = makeProblem("f3")
-    val cmp = Comparison.dominance(Min)
-    val iterations = 100
+    val alg = AlgStream("gbest")
 
+    //zstream things
+    val outputFile = new java.io.File("results/out.parquet")
     val combinations =
       for {
         r <- RNG.initN(1, 123456789L)
       } yield {
         Runner.foldStep(
-          cmp,
+          Comparison.dominance(Min),
           r,
-          swarm,
-          AlgStream("gbest"),
+          makeSwarm(bounds, swarmSize),
+          alg,
           problem,
           (x: Swarm, _) => RVar.pure(x)
         )
