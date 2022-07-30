@@ -1,32 +1,50 @@
+import Util._
 import cilib._
 import cilib.exec._
-import cilib.pso.Defaults._
-import cilib.pso._
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.auto._
-import eu.timepit.refined.collection.NonEmpty
-import eu.timepit.refined.numeric._
-import scalaz.effect._
-import scalaz.stream.{Process, _}
-import spire.implicits._
-import spire.math.Interval
+import cilib.io._
+import zio.stream._
 
-object Main extends SafeApp {
-  // General config
-  val iterations = 100
-  val independentRuns = 2
-  val cores = 8
-  val outputFile = "results.csv"
-  val numberOfParticles: Int Refined Positive = 10
-  val bounds = Interval(-5.12, 5.12) ^ 30 // The bounds of our search space(s)
-
-  // Our algorithm
-  val cognitive = Guide.pbest[Mem[Double], Double]
-  val social = Guide.gbest[Mem[Double]]
-  val gbestPSO = gbest(0.729844, 1.496180, 1.496180, cognitive, social)
-  val algorithmName: String Refined NonEmpty = "GBest PSO"
-  val swarm = Position.createCollection(PSO.createParticle(x => Entity(Mem(x, x.zeroed), x)))(bounds, numberOfParticles)
+object main extends zio.App {
+  /*
+   * combinations is the main ZStream dependency
+   * combinations in turn requires swarm, Runner.staticAlgorithm and problemStream
+   */
 
 
+   def run(args: List[String]) = {
+    val threads = 1
+    val outputFile = new java.io.File("results/out.parquet")
+    println("Preparing to run")
+    println(args)
+    // problem parameters
+    val swarmSize = 20
+    val problemDimensions = 5
+    val bounds = Interval(-100.0, 100.0) ^ problemDimensions
 
-}
+    // combinations objects
+    val swarm = makeSwarm(bounds, swarmSize)
+    val problem = makeProblem("f3")
+    val cmp = Comparison.dominance(Min)
+    val iterations = 100
+
+    val combinations =
+      for {
+        r <- RNG.initN(1, 123456789L)
+      } yield {
+        Runner.foldStep(
+          cmp,
+          r,
+          swarm,
+          AlgStream("gbest"),
+          problem,
+          (x: Swarm, _) => RVar.pure(x)
+        )
+        .map(Runner.measure(extractSolution _))
+        .take(iterations) // 1000 iterations
+      }
+
+      ZStream.mergeAll(threads)(combinations: _*)
+      .run(parquetSink(outputFile))
+      .exitCode
+    }
+  }

@@ -1,15 +1,21 @@
-ThisBuild / version := "0.1.0-SNAPSHOT"
-
-ThisBuild / scalaVersion := "2.12.10" // highest version allowed by cilib
-
-libraryDependencies ++= Seq(
-    "net.cilib" %% "cilib-core" % "2.0.1",
-    "net.cilib" %% "cilib-pso" % "2.0.1",
-    "net.cilib" %% "cilib-exec" % "2.0.1",
-    "net.cilib" %% "benchmarks" % "0.1.1"
+inThisBuild(
+  List(
+    scalaVersion := "2.12.15",
+    run / fork := true
+  )
 )
+
+val cilibVersion = "2.0.0+97-d11405f0-SNAPSHOT"
+val benchmarksVersion = "0.2.0-SNAPSHOT"
 
 lazy val root = (project in file("."))
   .settings(
-    name := "nnepso"
-  )
+    resolvers += Resolver.sonatypeRepo("snapshots"),
+    scalacOptions += "-Ywarn-unused",
+    libraryDependencies ++= Seq(
+      "net.cilib" %% "core" % cilibVersion,
+      "net.cilib" %% "pso"  % cilibVersion,
+      "net.cilib" %% "io"   % cilibVersion,
+      "net.cilib" %% "exec" % cilibVersion,
+      "net.cilib" %% "benchmarks" % benchmarksVersion
+    ))
