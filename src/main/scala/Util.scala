@@ -2,33 +2,10 @@ import _root_.benchmarks._
 import cilib._
 import cilib.exec._
 import cilib.pso._
-import cilib.pso.Defaults._
 import zio.prelude._
-import zio.prelude.newtypes.Natural
 import zio.prelude.{Comparison => _, _}
 
 object Util {
-  def AlgStream(name: String) = {
-    name match {
-      case _ => { // TODO implement pattern matching by name, fail if not found
-        val gbpso = gbest(
-          0.729844,
-          1.496180,
-          1.496180,
-          Guide.pbest[Mem[Double], Double],
-          Guide.gbest[Mem[Double]]
-        )
-        Runner.staticAlgorithm(name, Kleisli(Iteration.sync(gbpso)))
-      }
-    }
-  }
-
-  def makeSwarm(bounds: NonEmptyVector[Interval], swarmSize: Int) = {
-    val size = Natural.make(swarmSize).toOption.get
-    Position.createCollection(
-      PSO.createParticle(x => Entity(Mem(x, x.zeroed), x))
-    )(bounds, size)
-  }
 
   def makeProblem(name: String) = {
     // val p = name match {
@@ -60,11 +37,11 @@ object Util {
         sys.error("Input vector requires at least 2 elements")
       case ZValidation.Success(_, result) => result
     }
-  type Swarm = NonEmptyVector[Particle[Mem[Double], Double]]
 
   // A data structure to hold the resulting values.
   // Each class member is mapped to a column within the output file
   final case class Results(min: Double, average: Double)
+  type Swarm = NonEmptyVector[Particle[Mem[Double], Double]]
 
   def extractSolution(collection: Swarm) = {
     val fitnessValues = collection.map(x =>
