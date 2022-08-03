@@ -8,21 +8,11 @@ import zio.prelude.{Comparison => _, _}
 object Util {
 
   def makeProblem(name: String) = {
-    // val p = name match {
-    //   case "f3" =>
-    //     Eval.unconstrained((x: NonEmptyVector[Double]) => {
-    //       Feasible(benchmarks.cec.cec2005.Benchmarks.f3(mkAtLeast2List(x)))
-    //     })
-    //   case _ =>
-    //     Eval.unconstrained((x: NonEmptyVector[Double]) => {
-    //       Feasible(benchmarks.cec.cec2005.Benchmarks.f3(mkAtLeast2List(x)))
-    //     })
-    // }
-    // case "f3" =>
     val p = Eval.unconstrained((x: NonEmptyVector[Double]) => {
       Feasible(name match {
+        case "f1" => benchmarks.cec.cec2005.Benchmarks.f1(x)
         case "f3" => benchmarks.cec.cec2005.Benchmarks.f3(mkAtLeast2List(x))
-        case _    => benchmarks.cec.cec2005.Benchmarks.f1(x)
+        case _    => throw new Exception("invalid problem name")
       })
     })
     Runner.staticProblem(name, p)

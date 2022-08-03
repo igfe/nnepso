@@ -15,10 +15,11 @@ object main extends zio.App {
     val iterations = 100
     val problemDimensions = 5
     val bounds = Interval(-100.0, 100.0) ^ problemDimensions
+    val algname = "gbest" //change to "quantum"
 
     // combinations objects
     val problem = makeProblem("f3")
-    val alg = AlgStream("gbest")
+    val alg = AlgStream(algname)
 
     // zstream things
     val outputFile = new java.io.File("results/out.parquet")
@@ -30,7 +31,7 @@ object main extends zio.App {
           .foldStep(
             Comparison.dominance(Min),
             r,
-            makeSwarm(bounds, swarmSize),
+            makeSwarm(bounds, swarmSize, algname),
             alg,
             problem,
             (x: Swarm, _) => RVar.pure(x)

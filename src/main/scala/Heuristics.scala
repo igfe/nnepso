@@ -30,9 +30,9 @@ object Heuristics {
       //   val qpso =
       //     Iteration.sync(
       //       quantumPSO(
-      //         0.729844,
-      //         1.496180,
-      //         1.496180,
+      //         w,
+      //         c1,
+      //         c2,
       //         Guide.pbest,
       //         Guide.dominance(Selection.star),
       //         (_, _) => RVar.pure(50.0)
@@ -46,11 +46,25 @@ object Heuristics {
     }
   }
 
-  def makeSwarm(bounds: NonEmptyVector[Interval], swarmSize: Int) = {
+  def makeSwarm(
+      bounds: NonEmptyVector[Interval],
+      swarmSize: Int,
+      name: String
+  ): RVar[NonEmptyVector[Particle[Mem[Double], Double]]] = {
     val size = Natural.make(swarmSize).toOption.get
-    Position.createCollection(
-      PSO.createParticle(x => Entity(Mem(x, x.zeroed), x))
-    )(bounds, size)
+    name match {
+      case "gbest" => {
+        Position.createCollection(
+          PSO.createParticle(x => Entity(Mem(x, x.zeroed), x))
+        )(bounds, size)
+      }
+      // case "quantum" {
+
+      // }
+      case _ => {
+        throw new Exception("invalid algorithm name")
+      }
+    }
   }
 
   // case class QuantumState(
