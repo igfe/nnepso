@@ -1,3 +1,5 @@
+package nnepso
+
 import _root_.benchmarks._
 import cilib._
 import cilib.exec._

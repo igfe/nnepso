@@ -1,3 +1,5 @@
+package nnepso
+
 import cilib._
 import cilib.exec._
 import cilib.pso.Defaults._
@@ -46,25 +48,16 @@ object Heuristics {
     }
   }
 
-  def makeSwarm(
+  def makeSwarm[S](
       bounds: NonEmptyVector[Interval],
       swarmSize: Int,
-      name: String
-  ): RVar[NonEmptyVector[Particle[Mem[Double], Double]]] = {
+      stateFunc: Position[Double] => S
+  ): RVar[NonEmptyVector[Particle[S, Double]]] = {
     val size = Natural.make(swarmSize).toOption.get
-    name match {
-      case "gbest" => {
-        Position.createCollection(
-          PSO.createParticle(x => Entity(Mem(x, x.zeroed), x))
-        )(bounds, size)
-      }
-      // case "quantum" {
 
-      // }
-      case _ => {
-        throw new Exception("invalid algorithm name")
-      }
-    }
+    Position.createCollection(
+      PSO.createParticle(x => Entity(stateFunc(x), x))
+    )(bounds, size)
   }
 
   // case class QuantumState(

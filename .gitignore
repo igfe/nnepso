@@ -1,6 +1,7 @@
 target
 .bloop
-/.metals
-/.bsp
-/.direnv
-/project
+.metals
+.bsp
+.direnv
+project
+target
