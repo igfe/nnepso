@@ -9,6 +9,9 @@ inThisBuild(
 
 
 // mainClass := Some("com.example.main")
+cleanFiles += baseDirectory.value / "out/"
+
+Global / onChangedBuildSource := ReloadOnSourceChanges
 
 //val cilibVersion = "2.0.0+97-d11405f0-SNAPSHOT"
 val cilibVersion = "2.0.0+123-6fb77f57-SNAPSHOT"
@@ -25,6 +28,6 @@ lazy val root = (project in file("."))
       "net.cilib" %% "io" % cilibVersion,
       "net.cilib" %% "exec" % cilibVersion,
       "net.cilib" %% "benchmarks" % benchmarksVersion,
-      "dev.zio" %% "zio-cli" % "0.2.7"
+      "dev.zio" %% "zio-cli" % "0.2.7",
     )
   )

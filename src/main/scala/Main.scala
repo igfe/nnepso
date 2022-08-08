@@ -13,38 +13,44 @@ import zio.cli._
 object main extends zio.ZIOAppDefault {
 
   // Global constants
-  val threads = 1
+  val threads = 8
   val swarmSize = 20
-  val iterations = 100
+  val iterations = 1000
   val problemDimensions = 5
   val bounds = Interval(-100.0, 100.0) ^ problemDimensions
+  val n_runs = 1
 
+  /*
+   * CLI logic
+   * for new algorithm: Cmd object, command value, add to subcommand
+   */
   sealed trait Cmd
   object Cmd {
-    final case class PSO(problem: String) extends Cmd
+    final case class GBEST(problem: String) extends Cmd
     final case class QPSO(problem: String) extends Cmd
   }
 
-  val problemOpt = Options.text("problem")
+  val problemOpt = Options.text("problem").alias("p")
 
-  val pso = Command("pso", problemOpt, Args.none)
-    .map(Cmd.PSO)
+  val gbest = Command("gbest", problemOpt, Args.none)
+    .map(Cmd.GBEST)
   val qpso = Command("qpso", problemOpt, Args.none)
     .map(Cmd.QPSO)
 
   val runCommand: Command[Cmd] =
     Command("run", Options.none, Args.none)
-      .subcommands(pso, qpso)
+      .subcommands(gbest, qpso)
 
   val app =
     CliApp.make(
-      name = "",
+      name = "NNEPSO",
       version = "",
-      summary = text("this is a summary"),
+      summary = text("Neural Network Ensembles with Particle Swarm optimization\n" +
+        "example from sbt REPL: run gbest -p f1"),
       command = runCommand
     ) {
-      case Cmd.PSO(problem) =>
-        val outputFile = new java.io.File("out/results.parquet")
+      case Cmd.GBEST(problem) =>
+        val outputFile = new java.io.File(s"out/gbest${iterations}$problem.parquet")
         val combinations = preparePSO(problem)
 
         ZStream
@@ -62,8 +68,8 @@ object main extends zio.ZIOAppDefault {
       _ <- app.run(args.toList)
     } yield ()
 
-  def preparePSO(problem: String) = {
-    val problem = makeProblem("f3")
+  def preparePSO(pstring: String) = {
+    val problem = makeProblem(pstring)
     val alg = AlgStream("gbest")
 
     val stdPSOState = (x: Position[Double]) => Mem(x, x.zeroed)
@@ -71,7 +77,7 @@ object main extends zio.ZIOAppDefault {
     // zstream things
     val combinations =
       for {
-        r <- RNG.initN(1, 123456789L)
+        r <- RNG.initN(n_runs, 123456789L)
       } yield {
         Runner
           .foldStep(
@@ -87,4 +93,30 @@ object main extends zio.ZIOAppDefault {
       }
     combinations
   }
+
+  // def prepareQPSO(problem: String) = {
+  //   val problem = makeProblem("f3")
+  //   val alg = AlgStream("qpso")
+
+  //   val QPSOState = (x: Position[Double]) => QuantumState(x, x.zeroed, 0.0)
+
+  //   // zstream things
+  //   val combinations =
+  //     for {
+  //       r <- RNG.initN(1, 123456789L)
+  //     } yield {
+  //       Runner
+  //         .foldStep(
+  //           Comparison.dominance(Min),
+  //           r,
+  //           makeSwarm(bounds, swarmSize, QPSOState),
+  //           alg,
+  //           problem,
+  //           (x: Swarm, _) => RVar.pure(x)
+  //         )
+  //         .map(Runner.measure(extractSolution _))
+  //         .take(iterations) // 1000 iterations
+  //     }
+  //   combinations
+  // }
 }
