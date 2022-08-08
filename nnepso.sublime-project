@@ -1,0 +1,7 @@
+ {
+    "folders": [{
+        "path": ".",
+        "folder_exclude_patterns": [".bloop",".bsp",".metals", "target", "project"],
+        "file_exclude_patterns": ["*.nix", "*.lock"]
+    }]
+}

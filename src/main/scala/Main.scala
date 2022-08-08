@@ -22,7 +22,11 @@ object main extends zio.ZIOAppDefault {
 
   /*
    * CLI logic
-   * for new algorithm: Cmd object, command value, add to subcommand
+   * for new algorithm: 
+   * - Cmd object, 
+   * - command value
+   * - add as subcommand to `run` command
+   * - add logic to CliApp.make(){} 
    */
   sealed trait Cmd
   object Cmd {
