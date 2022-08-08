@@ -4,5 +4,5 @@ target
 .bsp
 .direnv
 project
-target
+target/*
 out/*
