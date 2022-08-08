@@ -41,7 +41,20 @@ def plot_from_df(df):
 	plt.legend()
 	plt.show()
 
+def selector(paths):
+	c = 0
+	if len(paths) > 1:
+		print("too many .parquet files, select one")
+		for i in range(len(paths)):
+			print(f"[{i}]\t{paths[i]}")
+		cv = int(input())
+		if cv > len(paths) - 1:
+			print("invalid input, terminating")
+			pass
+		else:
+			df = read_pq_as_df(paths[c])
+			plot_from_df(df)
+
 if __name__ == '__main__':
 	paths = get_pq_files("out/")
-	df = read_pq_as_df(paths[0])
-	plot_from_df(df)
+	selector(paths)
