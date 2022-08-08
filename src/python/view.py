@@ -12,7 +12,7 @@ def plot_from_df(df, column):
 	plt.plot(xs, label=column)
 
 print("reading parquet table")
-table = pq.read_table('results/out.parquet')
+table = pq.read_table('out/results.parquet')
 print("parquet to pandas")
 df = table.to_pandas()
 

@@ -44,7 +44,7 @@ object main extends zio.ZIOAppDefault {
       command = runCommand
     ) {
       case Cmd.PSO(problem) =>
-        val outputFile = new java.io.File("results/out.parquet")
+        val outputFile = new java.io.File("out/results.parquet")
         val combinations = preparePSO(problem)
 
         ZStream

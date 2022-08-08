@@ -8,7 +8,7 @@ inThisBuild(
 )
 
 
-mainClass := Some("com.example.main")
+// mainClass := Some("com.example.main")
 
 //val cilibVersion = "2.0.0+97-d11405f0-SNAPSHOT"
 val cilibVersion = "2.0.0+123-6fb77f57-SNAPSHOT"
