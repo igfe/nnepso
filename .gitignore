@@ -1,10 +1,10 @@
-target
 .bloop
-.metals
 .bsp
+*.conf
 .direnv
-project
-target/*
+.metals
 out/*
+project
 project/target/*
-.conf
+target
+target/*
