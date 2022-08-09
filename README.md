@@ -18,4 +18,4 @@ The dependencies automatically handled by the build tools `nix` and `sbt`. After
 - use `run <pso> -p <problem>` and the problem parameters.
 
 ## development
-I develop mostly in the Sublime Text editor, due to my fear of IDE dotfiles and inconsistent behavior of IDE built in terminals. To help with code formatting and type inference, I use `LSP-metals`. Sublime text native `reindent` breaks when it encounters some scala syntax, I use `LSP: Format File` from the command palette or the `ctrl+alt+l` shortcut.
+I develop mostly in the Sublime Text editor, due to my fear of IDE dotfiles and inconsistent behavior of IDE built in terminals. To help with code formatting and type inference, I use [LSP](https://packagecontrol.io/packages/LSP) with [LSP-metals](https://packagecontrol.io/packages/LSP-metals). Sublime text native `reindent` breaks when it encounters some scala syntax, I use `LSP: Format File` from the command palette or the `ctrl+alt+l` shortcut.

@@ -47,14 +47,27 @@ def selector(paths):
 		print("too many .parquet files, select one")
 		for i in range(len(paths)):
 			print(f"[{i}]\t{paths[i]}")
-		cv = int(input())
-		if cv > len(paths) - 1:
+		c = int(input())
+		if c > len(paths) - 1:
 			print("invalid input, terminating")
 			pass
-		else:
-			df = read_pq_as_df(paths[c])
-			plot_from_df(df)
+	path = paths[c]
+	df = read_pq_as_df(path)
+	print(f"selected: {path}")
+	plot_from_df(df)
 
-if __name__ == '__main__':
+def main():
 	paths = get_pq_files("out/")
 	selector(paths)
+
+def df_preprocess(df):
+	df.join(pd.DataFrame(df.pop('data').values.tolist()))
+
+if __name__ == '__main__':
+	# main()
+	path = "out/qpso100f3.parquet"
+	df = read_pq_as_df(path)
+	breakpoint()
+	print(df.head())
+	# print(f"selected: {path}")
+	# plot_from_df(df)

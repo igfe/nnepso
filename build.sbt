@@ -1,3 +1,6 @@
+logLevel := Level.Warn
+
+
 inThisBuild(
   List(
     version := "1.0",
