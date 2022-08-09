@@ -4,7 +4,7 @@ import _root_.benchmarks._
 import cilib._
 import cilib.exec._
 import cilib.pso._
-import zio.prelude._
+// import zio.prelude._
 import zio.prelude.{Comparison => _, _}
 
 object Util {
@@ -34,6 +34,7 @@ object Util {
   // A data structure to hold the resulting values.
   // Each class member is mapped to a column within the output file
   final case class Results(min: Double, average: Double)
+  
   def extractSolution[A](
       collection: NonEmptyVector[Particle[A, Double]]
   ): Results = {

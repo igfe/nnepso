@@ -30,19 +30,20 @@ object main extends zio.ZIOAppDefault {
    * - add as subcommand to `run` command
    * - add logic to CliApp.make(){}
    */
+  case class SimOptions(problem: String, iterations: Int)
   sealed trait Cmd
   object Cmd {
-    final case class GBEST(problem: String, iters: Int) extends Cmd
-    final case class QPSO(problem: String, iters: Int) extends Cmd
+    final case class GBEST(options: SimOptions) extends Cmd
+    final case class QPSO(options: SimOptions) extends Cmd
   }
 
+  // CLI flags
   val problemOpt = Options.text("problem").alias("p")
-  val iterOpt = Options.integer("iterations").alias("i")
+  val iterOpt = Options.text("iterations").alias("i").map(_.toInt)
+  val options = (problemOpt ++ iterOpt).as(SimOptions.apply _)
 
-  val gbestCMD = Command("gbest", (problemOpt ++ iterOpt), Args.none)
-    .map{ case (problem, iterations) => Cmd.GBEST(problem, iterations.toInt) }
-  val qpsoCMD = Command("qpso", (problemOpt ++ iterOpt), Args.none)
-    .map{ case (problem, iterations) => Cmd.QPSO(problem, iterations.toInt) }
+  val gbestCMD = Command("gbest", options, Args.none).map(Cmd.GBEST)
+  val qpsoCMD = Command("qpso", options, Args.none).map(Cmd.QPSO)
 
   val runCommand: Command[Cmd] =
     Command("run", Options.none, Args.none)
@@ -58,30 +59,28 @@ object main extends zio.ZIOAppDefault {
       ),
       command = runCommand
     ) {
-      case Cmd.GBEST(problem, n_iter) =>
+      case Cmd.GBEST(options) =>
         val outputFile =
-          new java.io.File(s"out/gbest${n_iter}$problem.parquet")
-        val combinations = preparePSO(problem, n_iter)
+          new java.io.File(
+            s"out/gbest${options.iterations}${options.problem}.parquet"
+          )
+        val combinations = preparePSO(options.problem, options.iterations)
 
         ZStream
           .mergeAll(threads)(combinations: _*)
           .run(parquetSink(outputFile))
 
-      case Cmd.QPSO(problem, n_iter) =>
+      case Cmd.QPSO(options) =>
         val outputFile =
-          new java.io.File(s"out/qpso${n_iter}$problem.parquet")
-        val combinations = prepareQPSO(problem, n_iter)
+          new java.io.File(
+            s"out/qpso_${options.iterations}_${options.problem}.parquet"
+          )
+        val combinations = prepareQPSO(options.problem, options.iterations)
 
         ZStream
           .mergeAll(threads)(combinations: _*)
           .run(parquetSink(outputFile))
     }
-
-  override def run =
-    for {
-      args <- ZIOAppArgs.getArgs
-      _ <- app.run(args.toList)
-    } yield ()
 
   /*
    * Algorithm logic
@@ -121,7 +120,7 @@ object main extends zio.ZIOAppDefault {
     val QPSOState = (x: Position[Double]) => QuantumState(x, x.zeroed, 0.0)
 
     // zstream things
-    val combinations =
+    val combinations = 
       for {
         r <- RNG.initN(n_runs, 123456789L)
       } yield {
@@ -167,11 +166,11 @@ object main extends zio.ZIOAppDefault {
   //   )
   // }
 
-  // def combinations[F[_], A, Out](
-  //   swarm: RVar[F[A]],
-  //   algStream: UStream[Algorithm[Kleisli[Step[*], F[A], F[A]]]],
-  //   probStream: UStream[Problem],
-  //   extractSolution: F[A] => Out
+  // def makeCombinations[F[_], A, Out](
+  //     swarm: RVar[F[A]],
+  //     algStream: UStream[Algorithm[Kleisli[Step[*], F[A], F[A]]]],
+  //     probStream: UStream[Problem],
+  //     extractSolution: F[A] => Out
   // ) = {
   //   // zstream things
   //   for {
@@ -190,4 +189,11 @@ object main extends zio.ZIOAppDefault {
   //       .take(n_iter)
   //   }
   // }
+
+  // main entry point
+  override def run =
+    for {
+      args <- ZIOAppArgs.getArgs
+      _ <- app.run(args.toList)
+    } yield ()
 }
