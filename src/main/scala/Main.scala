@@ -118,6 +118,41 @@ object main extends zio.ZIOAppDefault {
    * QPSO logic
    * Clean up ASAP
    */
+  type qswarm = NonEmptyVector[Particle[QuantumState, Double]]
+  def prepareQPSO(pString: String) = {
+    val problem = makeProblem(pString)
+    val algStream: UStream[Algorithm[
+      Kleisli[Step, NonEmptyVector[
+        Particle[QuantumState, Double]
+      ], qswarm]
+    ]] =
+      Runner.staticAlgorithm("QPSO", qpso)
+
+    val QPSOState = (x: Position[Double]) => QuantumState(x, x.zeroed, 0.0)
+
+    // zstream things
+    val combinations =
+      for {
+        r <- RNG.initN(n_runs, 123456789L)
+      } yield {
+        Runner
+          .foldStep(
+            Comparison.dominance(Min),
+            r,
+            makeSwarm(bounds, swarmSize, QPSOState),
+            algStream,
+            problem,
+            (
+                x: qswarm,
+                _: Eval[NonEmptyVector]
+            ) => RVar.pure(x)
+          )
+          .map(Runner.measure(extractSolution _))
+          .take(n_iter) // 1000 iterations
+      }
+    combinations
+  }
+
   case class QuantumState(
       b: Position[Double],
       v: Position[Double],
@@ -197,7 +232,7 @@ object main extends zio.ZIOAppDefault {
       )
     )
 
-  def qswarm: cilib.RVar[NonEmptyVector[Particle[QuantumState, Double]]] =
+  def qswarm: cilib.RVar[qswarm] =
     Position
       .createCollection(
         PSO.createParticle(x => Entity(QuantumState(x, x.zeroed, 0.0), x))
@@ -218,59 +253,4 @@ object main extends zio.ZIOAppDefault {
       }
       .flatMap(RVar.shuffle)
 
-  def prepareQPSO(pString: String) = {
-    val problem = makeProblem(pString)
-    val algStream: UStream[Algorithm[
-      Kleisli[Step, NonEmptyVector[
-        Particle[QuantumState, Double]
-      ], NonEmptyVector[Particle[QuantumState, Double]]]
-    ]] =
-      Runner.staticAlgorithm("QPSO", qpso)
-
-    val QPSOState = (x: Position[Double]) => QuantumState(x, x.zeroed, 0.0)
-
-    // zstream things
-    val combinations =
-      for {
-        r <- RNG.initN(n_runs, 123456789L)
-      } yield {
-        Runner
-          .foldStep(
-            Comparison.dominance(Min),
-            r,
-            makeSwarm(bounds, swarmSize, QPSOState),
-            algStream,
-            problem,
-            (
-                x: NonEmptyVector[Particle[QuantumState, Double]],
-                _: Eval[NonEmptyVector]
-            ) => RVar.pure(x)
-          )
-          .map(Runner.measure(extractQSolution _))
-          .take(n_iter) // 1000 iterations
-      }
-    combinations
-  }
-
-  type qswarm = NonEmptyVector[Particle[QuantumState, Double]]
-
-  def extractQSolution(collection: qswarm): Results = {
-    val fitnessValues = collection.map(x =>
-      x.pos.objective
-        .flatMap(_.fitness match {
-          case Left(f) =>
-            f match {
-              case Feasible(v) => Some(v)
-              case _           => None
-            }
-          case _ => None
-        })
-        .getOrElse(Double.PositiveInfinity)
-    )
-
-    Results(
-      min = fitnessValues.toChunk.min,
-      average = fitnessValues.toChunk.reduceLeft(_ + _) / fitnessValues.size
-    )
-  }
 }

@@ -77,9 +77,8 @@ def selector(paths):
 	plot_from_df(data, df)
 
 def main():
-	while True:
-		paths = get_pq_files("out/")
-		selector(paths)
+	paths = get_pq_files("out/")
+	selector(paths)
 
 if __name__ == '__main__':
 	main()

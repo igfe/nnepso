@@ -29,13 +29,14 @@ object Util {
         sys.error("Input vector requires at least 2 elements")
       case ZValidation.Success(_, result) => result
     }
+  type Swarm = NonEmptyVector[Particle[Mem[Double], Double]]
 
   // A data structure to hold the resulting values.
   // Each class member is mapped to a column within the output file
   final case class Results(min: Double, average: Double)
-  type Swarm = NonEmptyVector[Particle[Mem[Double], Double]]
-
-  def extractSolution(collection: Swarm) = {
+  def extractSolution[A](
+      collection: NonEmptyVector[Particle[A, Double]]
+  ): Results = {
     val fitnessValues = collection.map(x =>
       x.pos.objective
         .flatMap(_.fitness match {
