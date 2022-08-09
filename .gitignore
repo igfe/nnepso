@@ -8,3 +8,4 @@ project
 project/target/*
 target
 target/*
+*.sublime-workspace
