@@ -225,7 +225,7 @@ object main extends zio.ZIOAppDefault {
         Particle[QuantumState, Double]
       ], NonEmptyVector[Particle[QuantumState, Double]]]
     ]] =
-      Runner.staticAlgorithm("quantumPSO", qpso)
+      Runner.staticAlgorithm("QPSO", qpso)
 
     val QPSOState = (x: Position[Double]) => QuantumState(x, x.zeroed, 0.0)
 
