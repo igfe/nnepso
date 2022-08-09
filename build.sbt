@@ -1,5 +1,4 @@
-logLevel := Level.Warn
-
+// logLevel := Level.Warn
 
 inThisBuild(
   List(
@@ -9,7 +8,6 @@ inThisBuild(
     organization := "com.example"
   )
 )
-
 
 // mainClass := Some("com.example.main")
 cleanFiles += baseDirectory.value / "out/"
@@ -32,5 +30,8 @@ lazy val root = (project in file("."))
       "net.cilib" %% "exec" % cilibVersion,
       "net.cilib" %% "benchmarks" % benchmarksVersion,
       "dev.zio" %% "zio-cli" % "0.2.7",
+      compilerPlugin(
+        "org.typelevel" %% "kind-projector" % "0.13.2" cross CrossVersion.full
+      )
     )
   )

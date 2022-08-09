@@ -1,24 +1,23 @@
 package nnepso
 
-import Util._
-import Heuristics._
 import cilib._
 import cilib.exec._
 import cilib.io._
-import cilib.pso._
-import cilib.pso.PSO._
-import zio.stream._
+// import cilib.pso._
 import zio.ZIOAppArgs
 import zio.cli.HelpDoc.Span.text
 import zio.cli._
-import zio.optics._
+import zio.stream._
+
+import Util._
+import Heuristics._
 
 object main extends zio.ZIOAppDefault {
 
   // Global constants
   val threads = 8
   val swarmSize = 20
-  val n_iter = 100
+  // val n_iter = 100
   val problemDimensions = 5
   val bounds = Interval(-100.0, 100.0) ^ problemDimensions
   val n_runs = 5
@@ -33,16 +32,17 @@ object main extends zio.ZIOAppDefault {
    */
   sealed trait Cmd
   object Cmd {
-    final case class GBEST(problem: String) extends Cmd
-    final case class QPSO(problem: String) extends Cmd
+    final case class GBEST(problem: String, iters: Int) extends Cmd
+    final case class QPSO(problem: String, iters: Int) extends Cmd
   }
 
   val problemOpt = Options.text("problem").alias("p")
+  val iterOpt = Options.integer("iterations").alias("i")
 
-  val gbestCMD = Command("gbest", problemOpt, Args.none)
-    .map(Cmd.GBEST)
-  val qpsoCMD = Command("qpso", problemOpt, Args.none)
-    .map(Cmd.QPSO)
+  val gbestCMD = Command("gbest", (problemOpt ++ iterOpt), Args.none)
+    .map{ case (problem, iterations) => Cmd.GBEST(problem, iterations.toInt) }
+  val qpsoCMD = Command("qpso", (problemOpt ++ iterOpt), Args.none)
+    .map{ case (problem, iterations) => Cmd.QPSO(problem, iterations.toInt) }
 
   val runCommand: Command[Cmd] =
     Command("run", Options.none, Args.none)
@@ -58,19 +58,19 @@ object main extends zio.ZIOAppDefault {
       ),
       command = runCommand
     ) {
-      case Cmd.GBEST(problem) =>
+      case Cmd.GBEST(problem, n_iter) =>
         val outputFile =
           new java.io.File(s"out/gbest${n_iter}$problem.parquet")
-        val combinations = preparePSO(problem)
+        val combinations = preparePSO(problem, n_iter)
 
         ZStream
           .mergeAll(threads)(combinations: _*)
           .run(parquetSink(outputFile))
 
-      case Cmd.QPSO(problem) =>
+      case Cmd.QPSO(problem, n_iter) =>
         val outputFile =
           new java.io.File(s"out/qpso${n_iter}$problem.parquet")
-        val combinations = prepareQPSO(problem)
+        val combinations = prepareQPSO(problem, n_iter)
 
         ZStream
           .mergeAll(threads)(combinations: _*)
@@ -88,10 +88,8 @@ object main extends zio.ZIOAppDefault {
    * move to different file eventually
    */
 
-  def preparePSO(pstring: String) = {
+  def preparePSO(pstring: String, n_iter: Int) = {
     val problem = makeProblem(pstring)
-    val alg = AlgStream("gbest")
-
     val stdPSOState = (x: Position[Double]) => Mem(x, x.zeroed)
 
     // zstream things
@@ -104,30 +102,22 @@ object main extends zio.ZIOAppDefault {
             Comparison.dominance(Min),
             r,
             makeSwarm(bounds, swarmSize, stdPSOState),
-            alg,
+            gbpso,
             problem,
-            (x: Swarm, _) => RVar.pure(x)
+            (x: Swarm, _: Eval[NonEmptyVector]) => RVar.pure(x)
           )
           .map(Runner.measure(extractSolution _))
-          .take(n_iter) // 1000 iterations
+          .take(n_iter)
       }
     combinations
   }
 
   /*
    * QPSO logic
-   * Clean up ASAP
    */
-  type qswarm = NonEmptyVector[Particle[QuantumState, Double]]
-  def prepareQPSO(pString: String) = {
+  def prepareQPSO(pString: String, n_iter: Int) = {
     val problem = makeProblem(pString)
-    val algStream: UStream[Algorithm[
-      Kleisli[Step, NonEmptyVector[
-        Particle[QuantumState, Double]
-      ], qswarm]
-    ]] =
-      Runner.staticAlgorithm("QPSO", qpso)
-
+    val algStream = Runner.staticAlgorithm("QPSO", qpso)
     val QPSOState = (x: Position[Double]) => QuantumState(x, x.zeroed, 0.0)
 
     // zstream things
@@ -142,115 +132,62 @@ object main extends zio.ZIOAppDefault {
             makeSwarm(bounds, swarmSize, QPSOState),
             algStream,
             problem,
-            (
-                x: qswarm,
-                _: Eval[NonEmptyVector]
-            ) => RVar.pure(x)
+            (x: qswarm, _: Eval[NonEmptyVector]) => RVar.pure(x)
           )
           .map(Runner.measure(extractSolution _))
-          .take(n_iter) // 1000 iterations
+          .take(n_iter)
       }
     combinations
   }
+  // def preparePSO(pstring: String, n_iter: Int) = {
+  //   val problem = makeProblem(pstring)
+  //   val stdPSOState = (x: Position[Double]) => Mem(x, x.zeroed)
 
-  case class QuantumState(
-      b: Position[Double],
-      v: Position[Double],
-      charge: Double
-  )
+  //   combinations(
+  //     makeSwarm(bounds, swarmSize, stdPSOState),
+  //     gbpso,
+  //     problem,
+  //     Util.extractSolution
+  //   )
+  // }
 
-  type QuantumParticle = Particle[QuantumState, Double]
+  // /*
+  //  * QPSO logic
+  //  */
+  // def prepareQPSO(pString: String, n_iter: Int) = {
+  //   val problem = makeProblem(pString)
+  //   val algStream = Runner.staticAlgorithm("QPSO", qpso)
+  //   val QPSOState = (x: Position[Double]) => QuantumState(x, x.zeroed, 0.0)
 
-  object QuantumState {
-    implicit object QSMemory
-        extends HasMemory[QuantumState, Double]
-        with HasVelocity[QuantumState, Double]
-        with HasCharge[QuantumState] {
-      def _memory: Lens[QuantumState, Position[Double]] =
-        Lens[QuantumState, Position[Double]](
-          state => Right(state.b),
-          newB => state => Right(state.copy(b = newB))
-        )
-      def _velocity: Lens[QuantumState, Position[Double]] =
-        Lens[QuantumState, Position[Double]](
-          state => Right(state.v),
-          newV => state => Right(state.copy(v = newV))
-        )
-      def _charge: Lens[QuantumState, Double] = Lens[QuantumState, Double](
-        state => Right(state.charge),
-        newCharge => state => Right(state.copy(charge = newCharge))
-      )
-    }
-  }
+  //   combinations(
+  //     makeSwarm(bounds, swarmSize, QPSOState),
+  //     algStream,
+  //     problem,
+  //     Util.extractSolution
+  //   )
+  // }
 
-  def quantumPSO(
-      w: Double,
-      c1: Double,
-      c2: Double,
-      cognitive: Guide[QuantumState, Double],
-      social: Guide[QuantumState, Double],
-      cloudR: (Position[Double], Position[Double]) => RVar[Double]
-  )(implicit
-      C: HasCharge[QuantumState],
-      V: HasVelocity[QuantumState, Double],
-      M: HasMemory[QuantumState, Double]
-  ): NonEmptyVector[QuantumParticle] => QuantumParticle => Step[
-    QuantumParticle
-  ] =
-    collection =>
-      x =>
-        for {
-          cog <- cognitive(collection, x)
-          soc <- social(collection, x)
-          v <- stdVelocity(x, soc, cog, w, c1, c2)
-          p <-
-            if (C._charge.get(x.state).toOption.get < 0.01) stdPosition(x, v)
-            else
-              quantum(x.pos, cloudR(soc, cog), (_, _) => Dist.stdUniform)
-                .flatMap(replace(x, _))
-          p2 <- Step.eval(p)(identity)
-          p3 <- updateVelocity(p2, v)
-          updated <- updatePBestBounds(p3)
-        } yield updated
-
-  // Usage
-  val domain: NonEmptyVector[Interval] = Interval(0.0, 100.0) ^ 2
-
-  val qpso: Kleisli[Step, NonEmptyVector[QuantumParticle], NonEmptyVector[
-    QuantumParticle
-  ]] =
-    Kleisli(
-      Iteration.sync(
-        quantumPSO(
-          0.729844,
-          1.496180,
-          1.496180,
-          Guide.pbest,
-          Guide.dominance(Selection.star),
-          (_, _) => RVar.pure(50.0)
-        )
-      )
-    )
-
-  def qswarm: cilib.RVar[qswarm] =
-    Position
-      .createCollection(
-        PSO.createParticle(x => Entity(QuantumState(x, x.zeroed, 0.0), x))
-      )(domain, positiveInt(40))
-
-  def pop: RVar[NonEmptyVector[QuantumParticle]] =
-    qswarm
-      .map { coll =>
-        val C = implicitly[HasCharge[QuantumState]]
-        val chargeLens = Lenses._state[QuantumState, Double] >>> C._charge
-
-        coll.zipWithIndex.map { case (current, index) =>
-          chargeLens
-            .update(current)(z => if (index % 2 == 1) 0.1 else z)
-            .toOption
-            .get
-        }
-      }
-      .flatMap(RVar.shuffle)
-
+  // def combinations[F[_], A, Out](
+  //   swarm: RVar[F[A]],
+  //   algStream: UStream[Algorithm[Kleisli[Step[*], F[A], F[A]]]],
+  //   probStream: UStream[Problem],
+  //   extractSolution: F[A] => Out
+  // ) = {
+  //   // zstream things
+  //   for {
+  //     r <- RNG.initN(n_runs, 123456789L)
+  //   } yield {
+  //     Runner
+  //       .foldStep(
+  //         Comparison.dominance(Min),
+  //         r,
+  //         swarm,
+  //         algStream,
+  //         probStream,
+  //         (x: F[A], _: Eval[NonEmptyVector]) => RVar.pure(x)
+  //       )
+  //       .map(Runner.measure(extractSolution))
+  //       .take(n_iter)
+  //   }
+  // }
 }
