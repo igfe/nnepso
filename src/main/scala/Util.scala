@@ -34,9 +34,9 @@ object Util {
   // A data structure to hold the resulting values.
   // Each class member is mapped to a column within the output file
   final case class Results(min: Double, average: Double)
-  
-  def extractSolution[A](
-      collection: NonEmptyVector[Particle[A, Double]]
+
+  def extractSolution[S](
+      collection: NonEmptyVector[Particle[S, Double]]
   ): Results = {
     val fitnessValues = collection.map(x =>
       x.pos.objective

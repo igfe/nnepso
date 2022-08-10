@@ -30,7 +30,8 @@ object main extends zio.ZIOAppDefault {
    * - add as subcommand to `run` command
    * - add logic to CliApp.make(){}
    */
-  case class SimOptions(problem: String, iterations: Int)
+  final case class SimOptions(problem: String, iterations: Int)
+
   sealed trait Cmd
   object Cmd {
     final case class GBEST(options: SimOptions) extends Cmd
@@ -91,24 +92,12 @@ object main extends zio.ZIOAppDefault {
     val problem = makeProblem(pstring)
     val stdPSOState = (x: Position[Double]) => Mem(x, x.zeroed)
 
-    // zstream things
-    val combinations =
-      for {
-        r <- RNG.initN(n_runs, 123456789L)
-      } yield {
-        Runner
-          .foldStep(
-            Comparison.dominance(Min),
-            r,
-            makeSwarm(bounds, swarmSize, stdPSOState),
-            gbpso,
-            problem,
-            (x: Swarm, _: Eval[NonEmptyVector]) => RVar.pure(x)
-          )
-          .map(Runner.measure(extractSolution _))
-          .take(n_iter)
-      }
-    combinations
+    makeCombinations(
+      makeSwarm(bounds, swarmSize, stdPSOState),
+      gbpso,
+      problem,
+      Util.extractSolution[Mem[Double]] // Need to add the type parameter to help the compiler unify types
+    ).map(_.take(n_iter))
   }
 
   /*
@@ -119,76 +108,36 @@ object main extends zio.ZIOAppDefault {
     val algStream = Runner.staticAlgorithm("QPSO", qpso)
     val QPSOState = (x: Position[Double]) => QuantumState(x, x.zeroed, 0.0)
 
-    // zstream things
-    val combinations = 
-      for {
-        r <- RNG.initN(n_runs, 123456789L)
-      } yield {
-        Runner
-          .foldStep(
-            Comparison.dominance(Min),
-            r,
-            makeSwarm(bounds, swarmSize, QPSOState),
-            algStream,
-            problem,
-            (x: qswarm, _: Eval[NonEmptyVector]) => RVar.pure(x)
-          )
-          .map(Runner.measure(extractSolution _))
-          .take(n_iter)
-      }
-    combinations
+    makeCombinations(
+      makeSwarm(bounds, swarmSize, QPSOState),
+      algStream,
+      problem,
+      Util.extractSolution[QuantumState]  // Need to add the type parameter to help the compiler unify types
+    ).map(_.take(n_iter))
   }
-  // def preparePSO(pstring: String, n_iter: Int) = {
-  //   val problem = makeProblem(pstring)
-  //   val stdPSOState = (x: Position[Double]) => Mem(x, x.zeroed)
 
-  //   combinations(
-  //     makeSwarm(bounds, swarmSize, stdPSOState),
-  //     gbpso,
-  //     problem,
-  //     Util.extractSolution
-  //   )
-  // }
-
-  // /*
-  //  * QPSO logic
-  //  */
-  // def prepareQPSO(pString: String, n_iter: Int) = {
-  //   val problem = makeProblem(pString)
-  //   val algStream = Runner.staticAlgorithm("QPSO", qpso)
-  //   val QPSOState = (x: Position[Double]) => QuantumState(x, x.zeroed, 0.0)
-
-  //   combinations(
-  //     makeSwarm(bounds, swarmSize, QPSOState),
-  //     algStream,
-  //     problem,
-  //     Util.extractSolution
-  //   )
-  // }
-
-  // def makeCombinations[F[_], A, Out](
-  //     swarm: RVar[F[A]],
-  //     algStream: UStream[Algorithm[Kleisli[Step[*], F[A], F[A]]]],
-  //     probStream: UStream[Problem],
-  //     extractSolution: F[A] => Out
-  // ) = {
-  //   // zstream things
-  //   for {
-  //     r <- RNG.initN(n_runs, 123456789L)
-  //   } yield {
-  //     Runner
-  //       .foldStep(
-  //         Comparison.dominance(Min),
-  //         r,
-  //         swarm,
-  //         algStream,
-  //         probStream,
-  //         (x: F[A], _: Eval[NonEmptyVector]) => RVar.pure(x)
-  //       )
-  //       .map(Runner.measure(extractSolution))
-  //       .take(n_iter)
-  //   }
-  // }
+  def makeCombinations[F[_], A, Out](
+      swarm: RVar[F[A]],
+      algStream: UStream[Algorithm[Kleisli[Step[*], F[A], F[A]]]],
+      probStream: UStream[Problem],
+      extractSolution: F[A] => Out
+  ): List[ZStream[Any, Exception, cilib.exec.Measurement[Out]]] = {
+    // zstream things
+    for {
+      r <- RNG.initN(n_runs, 123456789L)
+    } yield {
+      Runner
+        .foldStep(
+          Comparison.dominance(Min),
+          r,
+          swarm,
+          algStream,
+          probStream,
+          (x: F[A], _: Eval[NonEmptyVector]) => RVar.pure(x)
+        )
+        .map(Runner.measure(extractSolution))
+    }
+  }
 
   // main entry point
   override def run =
