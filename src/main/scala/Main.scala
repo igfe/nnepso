@@ -38,7 +38,14 @@ object main extends zio.ZIOAppDefault {
     final case class QPSO(options: SimOptions) extends Cmd
   }
 
-  // CLI flags
+  /* CLI flags
+   * for new flag:
+   * - add to SimOptions
+   * - make Options.text value
+   * - add to options value
+   * - consider adding to output filename
+   * - parse logic in perparePSO/makeCombinations
+   */
   val problemOpt = Options.text("problem").alias("p")
   val iterOpt = Options.text("iterations").alias("i").map(_.toInt)
   val options = (problemOpt ++ iterOpt).as(SimOptions.apply _)
@@ -65,7 +72,7 @@ object main extends zio.ZIOAppDefault {
           new java.io.File(
             s"out/gbest${options.iterations}${options.problem}.parquet"
           )
-        val combinations = preparePSO(options.problem, options.iterations)
+        val combinations = preparePSO(options)
 
         ZStream
           .mergeAll(threads)(combinations: _*)
@@ -76,7 +83,7 @@ object main extends zio.ZIOAppDefault {
           new java.io.File(
             s"out/qpso_${options.iterations}_${options.problem}.parquet"
           )
-        val combinations = prepareQPSO(options.problem, options.iterations)
+        val combinations = prepareQPSO(options)
 
         ZStream
           .mergeAll(threads)(combinations: _*)
@@ -88,8 +95,8 @@ object main extends zio.ZIOAppDefault {
    * move to different file eventually
    */
 
-  def preparePSO(pstring: String, n_iter: Int) = {
-    val problem = makeProblem(pstring)
+  def preparePSO(options: SimOptions) = {
+    val problem = makeProblem(options.problem)
     val stdPSOState = (x: Position[Double]) => Mem(x, x.zeroed)
 
     makeCombinations(
@@ -97,14 +104,14 @@ object main extends zio.ZIOAppDefault {
       gbpso,
       problem,
       Util.extractSolution[Mem[Double]] // Need to add the type parameter to help the compiler unify types
-    ).map(_.take(n_iter))
+    ).map(_.take(options.iterations))
   }
 
   /*
    * QPSO logic
    */
-  def prepareQPSO(pString: String, n_iter: Int) = {
-    val problem = makeProblem(pString)
+  def prepareQPSO(options: SimOptions) = {
+    val problem = makeProblem(options.problem)
     val algStream = Runner.staticAlgorithm("QPSO", qpso)
     val QPSOState = (x: Position[Double]) => QuantumState(x, x.zeroed, 0.0)
 
@@ -113,7 +120,7 @@ object main extends zio.ZIOAppDefault {
       algStream,
       problem,
       Util.extractSolution[QuantumState]  // Need to add the type parameter to help the compiler unify types
-    ).map(_.take(n_iter))
+    ).map(_.take(options.iterations))
   }
 
   def makeCombinations[F[_], A, Out](
